@@ -13,7 +13,7 @@ const client = hc<AppType>("http://localhost:3000/")
 type Friend = {
   id: string
   name: string
-  image: string | null
+  image: string 
   status: string
 }
 
@@ -21,7 +21,7 @@ export default function FriendList({
   onSelectFriend,
   userEmail,
 }: {
-  onSelectFriend: (friend: { name: string; id: string; image: string | null }) => void
+  onSelectFriend: (friend: { name: string; id: string; image: string}) => void
   userEmail: string
 }) {
   const [friendList, setFriendList] = useState<Friend[]>([])
