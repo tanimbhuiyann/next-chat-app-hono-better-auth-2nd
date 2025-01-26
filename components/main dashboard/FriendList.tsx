@@ -55,7 +55,13 @@ export default function FriendList({
         </h2>
       </div>
       <ScrollArea className="flex-1">
-        <div className="flex items-center p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer">
+      <div 
+          className="flex items-center p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+          onClick={() => onSelectFriend({ 
+            name: 'MY AI', 
+            id: 'ai-assistant'
+          })}
+        >
           <User className="w-10 h-10 relative mr-3" />
           <h3 className="font-semibold text-foreground">MY AI</h3>
         </div>
