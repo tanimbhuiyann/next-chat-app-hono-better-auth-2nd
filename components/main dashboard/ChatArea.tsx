@@ -28,6 +28,7 @@ export default function ChatArea({
   const [newMessage, setNewMessage] = useState("");
   const { data: session } = authClient.useSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isFirstAiMessage = useRef(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -93,18 +94,31 @@ export default function ChatArea({
     if (!session?.user || !selectedFriend) return;
 
     if (selectedFriend.id === "ai-assistant") {
-      setAiMessages([
-        {
-          id: "ai-assistant",
-          senderId: "ai-assistant",
-          receiverId: session.user.id,
-          content: "Assalamualikum, how can I assist you today?",
-          role: "assistant",
-        },
-      ]);
+      // Only add the welcome message if it's the first time or if there are no messages
+      if (isFirstAiMessage.current || aiMessages.length === 0) {
+        setAiMessages(prev => {
+          // Check if the welcome message already exists
+          const hasWelcomeMessage = prev.some(msg => 
+            msg.content === "Assalamualikum, how can I assist you today?"
+          );
+          
+          if (!hasWelcomeMessage) {
+            return [{
+              id: "ai-assistant",
+              senderId: "ai-assistant",
+              receiverId: session.user.id,
+              content: "Assalamualikum, how can I assist you today?",
+              role: "assistant",
+            }, ...prev];
+          }
+          return prev;
+        });
+        isFirstAiMessage.current = false;
+      }
       return;
     }
 
+    // Handle friend chat connection
     const newSocket = io("http://localhost:3002", {
       transports: ["websocket"],
       query: { userId: session.user.id },
