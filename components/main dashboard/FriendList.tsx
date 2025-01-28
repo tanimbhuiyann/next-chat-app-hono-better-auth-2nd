@@ -5,11 +5,12 @@ import { AppType } from "@/hono";
 import Image from "next/image";
 import { User } from "lucide-react";
 const client = hc<AppType>("http://localhost:3000/");
+import ai_image from "../../public/ai_image.png";
 
 type Friend = {
   id: string;
   name: string;
-  image: string | null;
+  image: string;
   status: string;
 };
 
@@ -17,7 +18,7 @@ export default function FriendList({
   onSelectFriend,
   userEmail,
 }: {
-  onSelectFriend: (friend: { name: string; id: string }) => void;
+  onSelectFriend: (friend: { name: string; id: string; image: string }) => void;
   userEmail: string;
 }) {
   const [friendList, setFriendList] = useState<Friend[]>([]);
@@ -55,14 +56,24 @@ export default function FriendList({
         </h2>
       </div>
       <ScrollArea className="flex-1">
-      <div 
+        <div
           className="flex items-center p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
-          onClick={() => onSelectFriend({ 
-            name: 'MY AI', 
-            id: 'ai-assistant'
-          })}
+          onClick={() =>
+            onSelectFriend({
+              name: "MY AI",
+              id: "ai-assistant",
+              image: "/images/ai-assistant.png",
+            })
+          }
         >
-          <User className="w-10 h-10 relative mr-3" />
+          <div className="w-10 h-10 relative mr-3">
+            <Image
+              src={ai_image}
+              alt="ai_image"
+              layout="fill"
+              className="rounded-full object-cover"
+            />
+          </div>
           <h3 className="font-semibold text-foreground">MY AI</h3>
         </div>
         <ul>
