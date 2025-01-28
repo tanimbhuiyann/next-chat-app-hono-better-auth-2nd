@@ -23,7 +23,8 @@ export default function ChatArea({
   selectedFriend: { name: string; id: string } | null;
 }) {
   const [socket, setSocket] = useState<any | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [friendMessages, setFriendMessages] = useState<Message[]>([]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const { data: session } = authClient.useSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -34,67 +35,65 @@ export default function ChatArea({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [friendMessages, aiMessages]);
 
-const handleAiChat = async (userMessage: string) => {
-  try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        messages: [
-          // Include last few messages for context, limit to prevent token overflow
-          ...messages.slice(-5).filter(m => m.role !== undefined).map(m => ({
-            role: m.role,
-            content: m.content
-          })),
-          { role: 'user', content: userMessage }
-        ],
-        model: 'llama-3.3-70b-versatile'
-      })
-    });
+  const handleAiChat = async (userMessage: string) => {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          messages: [
+            ...aiMessages.slice(-5).filter(m => m.role !== undefined).map(m => ({
+              role: m.role,
+              content: m.content
+            })),
+            { role: 'user', content: userMessage }
+          ],
+          model: 'llama-3.3-70b-versatile'
+        })
+      });
 
-    if (!response.ok) {
-      throw new Error('AI response failed');
+      if (!response.ok) {
+        throw new Error('AI response failed');
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices[0].message.content;
+
+      setAiMessages(prev => [
+        ...prev, 
+        { 
+          senderId: 'ai-assistant', 
+          receiverId: session?.user.id || '', 
+          content: aiResponse,
+          role: 'assistant'
+        }
+      ]);
+    } catch (error) {
+      console.error('Error in AI chat:', error);
+      setAiMessages(prev => [
+        ...prev, 
+        { 
+          senderId: 'ai-assistant', 
+          receiverId: session?.user.id || '', 
+          content: 'Sorry, I encountered an error processing your request.',
+          role: 'assistant'
+        }
+      ]);
     }
+  };
 
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-
-    setMessages(prev => [
-      ...prev, 
-      { 
-        senderId: 'ai-assistant', 
-        receiverId: session?.user.id || '', 
-        content: aiResponse,
-        role: 'assistant'
-      }
-    ]);
-  } catch (error) {
-    console.error('Error in AI chat:', error);
-    setMessages(prev => [
-      ...prev, 
-      { 
-        senderId: 'ai-assistant', 
-        receiverId: session?.user.id || '', 
-        content: 'Sorry, I encountered an error processing your request.',
-        role: 'assistant'
-      }
-    ]);
-  }
-};
   useEffect(() => {
-  
-    setMessages([]);
     setNewMessage("");
 
     if (!session?.user || !selectedFriend) return;
 
-    if (selectedFriend.id == "ai-assistant") {
-      setMessages([
+    if (selectedFriend.id === "ai-assistant") {
+      setAiMessages([
         {
           id: "ai-assistant",
           senderId: "ai-assistant",
@@ -124,11 +123,11 @@ const handleAiChat = async (userMessage: string) => {
     });
 
     newSocket.on("receive_message", (message: Message) => {
-      setMessages((prev) => [...prev, message]);
+      setFriendMessages((prev) => [...prev, message]);
     });
 
     newSocket.on("message_history", (history: Message[]) => {
-      setMessages(history);
+      setFriendMessages(history);
     });
 
     setSocket(newSocket);
@@ -139,8 +138,7 @@ const handleAiChat = async (userMessage: string) => {
   }, [session?.user, selectedFriend]);
 
   const handleSendMessage = useCallback(() => {
-    if (!newMessage.trim() || !socket || !session?.user || !selectedFriend)
-      return;
+    if (!newMessage.trim() || !session?.user || !selectedFriend) return;
 
     const messageData: Message = {
       senderId: session.user.id,
@@ -150,10 +148,10 @@ const handleAiChat = async (userMessage: string) => {
     };
 
     if (selectedFriend.id === "ai-assistant") {
-      setMessages((prev) => [...prev, messageData]);
+      setAiMessages((prev) => [...prev, messageData]);
       handleAiChat(newMessage);
     } else {
-      socket.emit("send_message", messageData);
+      socket?.emit("send_message", messageData);
     }
 
     setNewMessage("");
@@ -168,6 +166,8 @@ const handleAiChat = async (userMessage: string) => {
       </div>
     );
   }
+
+  const messages = selectedFriend.id === "ai-assistant" ? aiMessages : friendMessages;
 
   return (
     <div className="flex-1 flex flex-col bg-background">
