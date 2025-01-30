@@ -21,7 +21,7 @@ type ChatProps = {
 };
 
 export function Chat({ friendName, friendId, onClose }: ChatProps) {
-  const [socket, setSocket] = useState<any | null>(null);
+  const [socket, setSocket] = useState<SocketIOClient.Socket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const { data: session } = authClient.useSession();

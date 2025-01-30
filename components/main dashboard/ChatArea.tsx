@@ -33,9 +33,9 @@ export default function ChatArea({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isFirstAiMessage = useRef(true)
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  }, [])
 
   useEffect(() => {
     scrollToBottom()

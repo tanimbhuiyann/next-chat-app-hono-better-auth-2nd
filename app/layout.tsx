@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
+import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -35,13 +36,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* <SidebarProvider>
-            <AppSidebar /> */}
-            <main>
-            {/*   <SidebarTrigger /> */}
-              {children}
-            </main>
-       {/*    </SidebarProvider> */}
+          <main>{children}</main>
+          <Toaster richColors />
         </ThemeProvider>
       </body>
     </html>

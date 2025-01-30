@@ -137,7 +137,7 @@ const app = new Hono()
       if (senderId === receiverId) {
         return c.json(
           { error: "You cannot send a friend request to yourself" },
-          400
+          401
         );
       }
 
@@ -166,7 +166,7 @@ const app = new Hono()
         .get();
 
       if (existingRequest) {
-        return c.json({ error: "Friend request already exists or friends are already connected" }, 400);
+        return c.json({ error: "Friend request already exists" }, 400);
       }
 
       // Insert new friend request
