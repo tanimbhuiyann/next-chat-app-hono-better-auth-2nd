@@ -56,7 +56,13 @@ export default function AddFriend({ userEmail }: { userEmail: string }) {
 
   return (
     <div className="flex-1 p-6 bg-background">
-      <h2 className="text-2xl font-bold mb-4 text-foreground">Add Friend</h2>
+    <div className="mb-6 ">
+    <h2 className="text-2xl font-bold mb-4 text-foreground">Add Friend</h2>
+    <p className="text-muted-foreground mb-4">
+      Add a friend by entering their email address. They will receive a friend request notification.
+    </p>
+    </div>
+     
       
       <div className="max-w-md">
         <Input

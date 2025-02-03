@@ -9,6 +9,9 @@ import { nanoid } from "nanoid";
 import { Server } from "socket.io";
 import { createServer } from "http";
 
+
+
+
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
@@ -96,7 +99,7 @@ const app = new Hono()
   .use(
     "*", // Allow all API routes
     cors({
-      origin: "http://localhost:3001", // replace with your origin
+      origin: "http://localhost:3001", // replace with  origin
       allowHeaders: ["Content-Type", "Authorization"],
       allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
       exposeHeaders: ["Content-Length"],

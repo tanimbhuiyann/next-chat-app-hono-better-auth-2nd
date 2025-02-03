@@ -83,6 +83,7 @@ export const chatMessage = sqliteTable("chat_messages", {
     .notNull()
     .references(() => user.id),
   content: text("content").notNull(),
+  imageUrl: text("image_url"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   readAt: integer("read_at", { mode: "timestamp" }),
   friendRequestId: text("friend_request_id")
