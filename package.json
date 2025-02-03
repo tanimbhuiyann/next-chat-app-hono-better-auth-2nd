@@ -49,6 +49,7 @@
     "use-debounce": "^10.0.4"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

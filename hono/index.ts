@@ -11,6 +11,9 @@ import { createServer } from "http";
 
 
 
+import {join } from "path";
+import { mkdir } from "fs/promises";
+
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -38,6 +41,7 @@ io.on("connection", (socket) => {
         senderId: messageData.senderId,
         receiverId: messageData.receiverId,
         content: messageData.content,
+        imageUrl: messageData.imageUrl || null,
         createdAt: new Date()
       };
 
@@ -107,6 +111,71 @@ const app = new Hono()
       credentials: true,
     })
   )
+
+
+ 
+.post("/api/upload", async (c) => {
+  try{
+    const fromData = await c.req.formData();
+    const file = fromData.get("file") as File;
+
+    if(!file){
+      return c.json({error: "No file uploaded"}, 400);
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+   
+    if(!allowedTypes.includes(file.type)){
+      return c.json({error: "Invalid file type"}, 400);
+    }
+
+    const maxSize = 5 * 1024 * 1024; 
+
+    if(file.size > maxSize){
+      return c.json({error: "File size exceeds 5mb limit"}, 400);
+    }
+
+    const filename = `${nanoid()}-${file.name}`;
+    const uploadPath = join(__dirname, "public", "uploads", filename);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    await mkdir(join(__dirname, "public", "uploads"), {recursive: true});
+    await Bun.write(uploadPath, buffer);
+
+
+   return c.json({url: `http://localhost:3000/uploads/${filename}`}, 201);
+
+  }
+  catch (error) {
+    console.error("upload error:", error);
+    return c.json({ error: "Failed to upload file" }, 500
+    );
+  }
+})
+
+
+
+.get("/uploads/:filename", async (c) => {
+  try {
+    const filename = c.req.param("filename");
+    const path = join(__dirname, "public", "uploads", filename);
+    const file = Bun.file(path);
+    
+    if (!(await file.exists())) {
+      return c.json({ error: "File not found" }, 404);
+    }
+    
+    return new Response(file, {
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream'
+      }
+    });
+  } catch (error) {
+    console.error("Error serving file:", error);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+})
 
 
 

@@ -21,12 +21,6 @@ export default function AddFriend({ userEmail }: { userEmail: string }) {
         },
       });
 
-/*       const toastConfig = {
-        action: {
-          label: "X",
-          onClick: () => toast.dismiss(),
-        },
-      } */
 
       switch (response.status) {
         case 401:
