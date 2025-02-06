@@ -114,7 +114,7 @@ const app = new Hono()
 
 
  
-.post("/api/upload", async (c) => {
+.post("/api/uploadImage", async (c) => {
   try{
     const fromData = await c.req.formData();
     const file = fromData.get("file") as File;
