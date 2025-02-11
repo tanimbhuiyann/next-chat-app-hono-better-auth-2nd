@@ -1,27 +1,14 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Send, ImagePlus, Loader2, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import io from "socket.io-client"
 import { authClient } from "@/lib/auth-client"
-import Image from "next/image"
-import { format } from "date-fns"
 import ai_image from "../../public/ai_image.png"
-
-
-
-type Message = {
-  id?: string
-  senderId: string
-  receiverId: string
-  content: string
-  createdAt: Date
-  role?: "user" | "assistant"
-  imageUrl?: string
-}
+import { ChatHeader } from "../Chat/ChatHeader"
+import { MessageBubble } from "../Chat/MessageBubble"
+import { ChatInput } from "../Chat/ChatInput"
+import { Message } from "../Chat/MessageType"
 
 export default function ChatArea({
   selectedFriend,
@@ -35,14 +22,14 @@ export default function ChatArea({
   const { data: session } = authClient.useSession()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isFirstAiMessage = useRef(true)
-
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
+  const fileInputRef = useRef<HTMLInputElement>(null as unknown as HTMLInputElement)
 
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -50,7 +37,7 @@ export default function ChatArea({
 
   useEffect(() => {
     scrollToBottom()
-  }, [friendMessages, aiMessages, scrollToBottom, isTyping]) // Added scrollToBottom to dependencies
+  }, [friendMessages, aiMessages, scrollToBottom, isTyping])
 
   const handleAiChat = async (userMessage: string) => {
     try {
@@ -208,8 +195,6 @@ export default function ChatArea({
     emitTyping();
   }
 
-  //____________________________________________________________________________________________________________________________
-
   const uploadImage = async (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
@@ -321,122 +306,34 @@ export default function ChatArea({
 
   return (
     <div className="flex-1 flex flex-col bg-background">
-      <div className="bg-background p-4 border-b border-border flex items-center">
-        <div className="w-10 h-10 relative mr-3">
-          <Image
-            src={selectedFriend.id === "ai-assistant" ? ai_image : selectedFriend.image || "/default-profile.png"}
-            alt={selectedFriend.name}
-            layout="fill"
-            className="rounded-full object-cover"
-          />
-        </div>
-        <h2 className="text-xl font-semibold text-foreground">{selectedFriend.name}</h2>
-      </div>
+      <ChatHeader selectedFriend={selectedFriend} aiImage={ai_image} />
       <ScrollArea className="flex-1 p-4">
         {messages.map((msg, index) => (
-          <div
+          <MessageBubble
             key={msg.id || index}
-            className={`mb-4 flex ${msg.senderId === session?.user?.id ? "justify-end" : "justify-start"}`}
-          >
-            <div className={`flex ${msg.senderId === session?.user?.id ? "flex-row-reverse" : "flex-row"} group`}>
-              <div className="w-8 h-8 relative mx-2">
-                <Image
-                  src={
-                    msg.senderId === session?.user?.id
-                      ? session.user?.image || "/default-profile.png"
-                      : selectedFriend.id === "ai-assistant"
-                        ? ai_image
-                        : selectedFriend.image || "/default-profile.png"
-                  }
-                  alt={msg.senderId === session?.user?.id ? "You" : selectedFriend.name}
-                  layout="fill"
-                  className="rounded-full object-cover"
-                />
-              </div>
-              <div>
-                <div
-                  className={`max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl break-words rounded-lg   ${
-                    msg.senderId === session?.user?.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground"
-                  }`}
-                >{msg.imageUrl ? (
-                  <div className="space-y-2 w-[250px] ">
-                    <Image
-                      src={msg.imageUrl || "/placeholder.svg"}
-                      alt="Sent Image"
-                      layout="responsive"
-                      width={500}
-                      height={500}
-                      className="rounded-lg w-full h-auto"
-                    />
-                   {/*  <p className="text-xs text-muted-foreground break-all">Image URL: {msg.imageUrl}</p> */}
-                  </div>
-                ) : (
-                  <p className=" px-4 py-2">{msg.content}</p>
-                )}
-                </div>
-                <p
-                  className={`text-xs text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${
-                    msg.senderId === session?.user?.id ? "text-right" : "text-left"
-                  }`}
-                >
-                  {format(new Date(msg.createdAt), "HH:mm")}
-                </p>
-              </div>
-            </div>
-          </div>
+            message={msg}
+            isCurrentUser={msg.senderId === session?.user?.id}
+            userImage={session?.user?.image ?? undefined}
+            friendImage={selectedFriend.image}
+            friendName={selectedFriend.name}
+            aiImage={ai_image.src}
+          />
         ))}
+
         <div ref={messagesEndRef} />
       </ScrollArea>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          handleSendMessage()
-        }}
-        className="p-4 border-t border-border flex gap-2"
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
-          className="hidden"
-          id="file-input"
-          disabled={isUploading}
-        />
-        <label
-          htmlFor="file-input"
-          className={`cursor-pointer p-2 rounded-lg ${isUploading ? "bg-muted cursor-not-allowed" : "hover:bg-accent"}`}
-        >
-          {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
-        </label>
-        {imageFile && (
-          <div className="flex items-center gap-2 bg-accent p-2 rounded-lg">
-            <span className="text-sm truncate max-w-[100px]">{imageFile.name}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setImageFile(null)
-                if (fileInputRef.current) fileInputRef.current.value = ""
-              }}
-              className="text-red-500 hover:text-red-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        <Input
-          value={newMessage}
-          onChange={handleTyping}
-          placeholder={`Message ${selectedFriend.name}...`}
-          className="flex-1"
-        />
-        <Button type="submit">
-          <Send size={20} />
-        </Button>
-      </form>
+     
+      <ChatInput
+        newMessage={newMessage}
+        setNewMessage={setNewMessage}
+        handleSendMessage={handleSendMessage}
+        imageFile={imageFile}
+        setImageFile={setImageFile}
+        isUploading={isUploading}
+        selectedFriend={selectedFriend}
+        fileInputRef={fileInputRef}
+        handleTyping={handleTyping}
+      />
     </div>
   )
 }

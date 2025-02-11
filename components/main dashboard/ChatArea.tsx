@@ -26,13 +26,18 @@ export default function ChatArea({
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null as unknown as HTMLInputElement)
 
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [friendMessages, aiMessages, scrollToBottom])
+  }, [friendMessages, aiMessages, scrollToBottom, isTyping])
 
   const handleAiChat = async (userMessage: string) => {
     try {
@@ -91,6 +96,7 @@ export default function ChatArea({
 
   useEffect(() => {
     setNewMessage("")
+    setIsTyping(false)
 
     if (!session?.user || !selectedFriend) return
 
@@ -144,12 +150,51 @@ export default function ChatArea({
       setFriendMessages(history)
     })
 
+    newSocket.on("typing_On", ({ userId }: { userId: string }) =>{
+      if(userId === selectedFriend.id){
+        console.log("typing on")
+        setIsTyping(true);
+      }
+    } )
+
+    newSocket.on("typing_Off", ({ userId }: { userId: string }) =>{
+      if(userId === selectedFriend.id){
+        setIsTyping(false);
+      }
+    } )
+
     setSocket(newSocket)
 
     return () => {
+      if(typingTimeoutRef.current){
+        clearTimeout(typingTimeoutRef.current);
+      }
       newSocket.disconnect()
     }
   }, [session?.user, selectedFriend])
+
+
+  const emitTyping = useCallback(() => {
+    if (!socket || !session?.user || !selectedFriend || selectedFriend.id === "ai-assistant") return;
+    socket.emit("typing_On", { userId: session.user.id, receiverId: selectedFriend.id });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("typing_Off", {
+        userId: session.user.id,
+        receiverId: selectedFriend.id,
+      });
+    }, 1000) as NodeJS.Timeout;
+  }, [socket, session?.user, selectedFriend]);
+
+
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) =>{
+    setNewMessage(e.target.value);
+    emitTyping();
+  }
 
   const uploadImage = async (file: File) => {
     const formData = new FormData()
@@ -275,8 +320,10 @@ export default function ChatArea({
             aiImage={ai_image.src}
           />
         ))}
+
         <div ref={messagesEndRef} />
       </ScrollArea>
+     
       <ChatInput
         newMessage={newMessage}
         setNewMessage={setNewMessage}
@@ -286,6 +333,7 @@ export default function ChatArea({
         isUploading={isUploading}
         selectedFriend={selectedFriend}
         fileInputRef={fileInputRef}
+        handleTyping={handleTyping}
       />
     </div>
   )

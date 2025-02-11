@@ -31,7 +31,24 @@ io.on("connection", (socket) => {
   socket.on('join_chat', async ({ senderId, receiverId }) => {
     const roomId = [senderId, receiverId].sort().join('_');
     socket.join(roomId);
+    console.log("New room created:", roomId);
   });
+
+
+  socket.on('typing_On', async ({ senderId, receiverId }) =>{
+    const roomId = [senderId, receiverId].sort().join('_');
+    socket.to(roomId).emit('typing_On',  { userId: senderId, isTyping: true });
+    socket.to(receiverId).emit('typing_On', { userId });
+    console.log('Typing On:', userId);
+  })
+
+
+  socket.on('typing_Off', async ({ senderId, receiverId }) =>{
+    const roomId = [senderId, receiverId].sort().join('_');
+    socket.to(roomId).emit('typing_Off',  { userId: senderId, isTyping: false });
+    socket.to(receiverId).emit('typing_Off', { userId });
+    console.log('Typing Off:', userId);
+  })
 
   // Send message
   socket.on('send_message', async (messageData) => {

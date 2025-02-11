@@ -104,7 +104,7 @@ export default function FriendList({
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">{friend.name}</h3>
-                <p className="text-sm text-muted-foreground">{friend.status}</p>
+               {/*  <p className="text-sm text-muted-foreground">{friend.status}</p> */}
               </div>
             </li>
           ))}
