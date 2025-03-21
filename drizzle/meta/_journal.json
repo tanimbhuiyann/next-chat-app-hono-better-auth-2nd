@@ -8,6 +8,13 @@
       "when": 1733631693493,
       "tag": "0000_eminent_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1742571160472,
+      "tag": "0001_awesome_eternals",
+      "breakpoints": true
     }
   ]
 }

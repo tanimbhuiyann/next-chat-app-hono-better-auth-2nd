@@ -1,73 +1,77 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import io from "socket.io-client"
-import { authClient } from "@/lib/auth-client"
-import ai_image from "../../public/ai_image.png"
-import { ChatHeader } from "../Chat/ChatHeader"
-import { MessageBubble } from "../Chat/MessageBubble"
-import { ChatInput } from "../Chat/ChatInput"
-import { Message } from "../Chat/MessageType"
+import { useState, useEffect, useCallback, useRef } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import io from "socket.io-client";
+import { authClient } from "@/lib/auth-client";
+import ai_image from "../../public/ai_image.png";
+import { ChatHeader } from "../Chat/ChatHeader";
+import { MessageBubble } from "../Chat/MessageBubble";
+import { ChatInput } from "../Chat/ChatInput";
+import { Message } from "../Chat/MessageType";
+import { TypingIndicator } from "../Chat/TypingIndicator";
 
 export default function ChatArea({
   selectedFriend,
 }: {
-  selectedFriend: { name: string; id: string; image?: string } | null
+  selectedFriend: { name: string; id: string; image?: string } | null;
 }) {
-  const [socket, setSocket] = useState<SocketIOClient.Socket | null>(null)
-  const [friendMessages, setFriendMessages] = useState<Message[]>([])
-  const [aiMessages, setAiMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState("")
-  const { data: session } = authClient.useSession()
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const isFirstAiMessage = useRef(true)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null as unknown as HTMLInputElement)
+  const [socket, setSocket] = useState<SocketIOClient.Socket | null>(null);
+  const [friendMessages, setFriendMessages] = useState<Message[]>([]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const { data: session } = authClient.useSession();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isFirstAiMessage = useRef(true);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(
+    null as unknown as HTMLInputElement
+  );
 
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-
-
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
-    scrollToBottom()
-  }, [friendMessages, aiMessages, scrollToBottom, isTyping])
+    scrollToBottom();
+  }, [friendMessages, aiMessages, scrollToBottom, isTyping]);
 
   const handleAiChat = async (userMessage: string) => {
     try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          messages: [
-            ...aiMessages
-              .slice(-5)
-              .filter((m) => m.role !== undefined)
-              .map((m) => ({
-                role: m.role,
-                content: m.content,
-              })),
-            { role: "user", content: userMessage },
-          ],
-          model: "llama-3.3-70b-versatile",
-        }),
-      })
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
+          },
+          body: JSON.stringify({
+            messages: [
+              ...aiMessages
+                .slice(-5)
+                .filter((m) => m.role !== undefined)
+                .map((m) => ({
+                  role: m.role,
+                  content: m.content,
+                })),
+              { role: "user", content: userMessage },
+            ],
+            model: "llama-3.3-70b-versatile",
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("AI response failed")
+        throw new Error("AI response failed");
       }
 
-      const data = await response.json()
-      const aiResponse = data.choices[0].message.content
+      const data = await response.json();
+      const aiResponse = data.choices[0].message.content;
 
       setAiMessages((prev) => [
         ...prev,
@@ -78,9 +82,9 @@ export default function ChatArea({
           role: "assistant",
           createdAt: new Date(),
         },
-      ])
+      ]);
     } catch (error) {
-      console.error("Error in AI chat:", error)
+      console.error("Error in AI chat:", error);
       setAiMessages((prev) => [
         ...prev,
         {
@@ -90,20 +94,23 @@ export default function ChatArea({
           role: "assistant",
           createdAt: new Date(),
         },
-      ])
+      ]);
     }
-  }
+  };
 
   useEffect(() => {
-    setNewMessage("")
-    setIsTyping(false)
+    setNewMessage("");
+    setIsTyping(false);
 
-    if (!session?.user || !selectedFriend) return
+    if (!session?.user || !selectedFriend) return;
 
     if (selectedFriend.id === "ai-assistant") {
       if (isFirstAiMessage.current || aiMessages.length === 0) {
         setAiMessages((prev) => {
-          const hasWelcomeMessage = prev.some((msg) => msg.content === "Assalamualikum, how can I assist you today?")
+          const hasWelcomeMessage = prev.some(
+            (msg) =>
+              msg.content === "Assalamualikum, how can I assist you today?"
+          );
 
           if (!hasWelcomeMessage) {
             return [
@@ -116,67 +123,76 @@ export default function ChatArea({
                 createdAt: new Date(),
               },
               ...prev,
-            ]
+            ];
           }
-          return prev
-        })
-        isFirstAiMessage.current = false
+          return prev;
+        });
+        isFirstAiMessage.current = false;
       }
-      return
+      return;
     }
 
     const newSocket = io("http://localhost:3002", {
       transports: ["websocket"],
       query: { userId: session.user.id },
-    })
+    });
 
     newSocket.on("connect", () => {
       newSocket.emit("join_chat", {
         senderId: session.user.id,
         receiverId: selectedFriend.id,
-      })
+      });
 
       newSocket.emit("get_message_history", {
         senderId: session.user.id,
         receiverId: selectedFriend.id,
-      })
-    })
+      });
+    });
 
     newSocket.on("receive_message", (message: Message) => {
-      setFriendMessages((prev) => [...prev, message])
-    })
+      setFriendMessages((prev) => [...prev, message]);
+    });
 
     newSocket.on("message_history", (history: Message[]) => {
-      setFriendMessages(history)
-    })
+      setFriendMessages(history);
+    });
 
-    newSocket.on("typing_On", ({ userId }: { userId: string }) =>{
-      if(userId === selectedFriend.id){
-        console.log("typing on")
+    newSocket.on("typing_On", ({ userId }: { userId: string }) => {
+      console.log("typing_On", userId);
+      if (userId === selectedFriend.id) {
         setIsTyping(true);
       }
-    } )
+    });
 
-    newSocket.on("typing_Off", ({ userId }: { userId: string }) =>{
-      if(userId === selectedFriend.id){
+    newSocket.on("typing_Off", ({ userId }: { userId: string }) => {
+      console.log("typing_Off", userId);
+      if (userId === selectedFriend.id) {
         setIsTyping(false);
       }
-    } )
+    });
 
-    setSocket(newSocket)
+    setSocket(newSocket);
 
     return () => {
-      if(typingTimeoutRef.current){
+      if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      newSocket.disconnect()
-    }
-  }, [session?.user, selectedFriend])
-
+      newSocket.disconnect();
+    };
+  }, [session?.user, selectedFriend]);
 
   const emitTyping = useCallback(() => {
-    if (!socket || !session?.user || !selectedFriend || selectedFriend.id === "ai-assistant") return;
-    socket.emit("typing_On", { userId: session.user.id, receiverId: selectedFriend.id });
+    if (
+      !socket ||
+      !session?.user ||
+      !selectedFriend ||
+      selectedFriend.id === "ai-assistant"
+    )
+      return;
+    socket.emit("typing_On", {
+      senderId: session.user.id,
+      receiverId: selectedFriend.id,
+    });
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -184,65 +200,64 @@ export default function ChatArea({
 
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("typing_Off", {
-        userId: session.user.id,
+        senderId: session.user.id,
         receiverId: selectedFriend.id,
       });
     }, 1000) as NodeJS.Timeout;
   }, [socket, session?.user, selectedFriend]);
 
-
-  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) =>{
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
     emitTyping();
-  }
+  };
 
   const uploadImage = async (file: File) => {
-    const formData = new FormData()
-    formData.append("file", file)
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      setIsUploading(true)
+      setIsUploading(true);
 
       const response = await fetch("http://localhost:3000/api/uploadImage", {
         method: "POST",
         body: formData,
-      })
+      });
 
       if (!response.ok) {
-        const errorText = await response.text()
+        const errorText = await response.text();
         console.error("Upload failed:", {
           status: response.status,
           statusText: response.statusText,
           errorText: errorText,
-        })
-        throw new Error(`Upload failed: ${errorText}`)
+        });
+        throw new Error(`Upload failed: ${errorText}`);
       }
 
-      const data = await response.json()
-      console.log("Upload successful:", data)
-      setIsUploading(false)
-      return data.url
+      const data = await response.json();
+      console.log("Upload successful:", data);
+      setIsUploading(false);
+      return data.url;
     } catch (error) {
-      console.error("Comprehensive upload error:", error)
-      return null
+      console.error("Comprehensive upload error:", error);
+      return null;
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
-      setImageFile(null)
+      setImageFile(null);
     }
-  }
+  };
 
   const handleImageUpload = async () => {
-    if (!imageFile || !session?.user || !selectedFriend) return
+    if (!imageFile || !session?.user || !selectedFriend) return;
 
     try {
-      const imageUrl = await uploadImage(imageFile)
+      const imageUrl = await uploadImage(imageFile);
 
       if (!imageUrl) {
-        console.error("Failed to upload image")
-        return
+        console.error("Failed to upload image");
+        return;
       }
 
       const imageMessage: Message = {
@@ -252,30 +267,30 @@ export default function ChatArea({
         role: "user",
         createdAt: new Date(),
         imageUrl,
-      }
+      };
 
       if (selectedFriend.id === "ai-assistant") {
-        setAiMessages((prev) => [...prev, imageMessage])
+        setAiMessages((prev) => [...prev, imageMessage]);
       } else {
-        socket?.emit("send_message", imageMessage)
+        socket?.emit("send_message", imageMessage);
       }
     } catch (error) {
-      console.error("Error in image upload process", error)
+      console.error("Error in image upload process", error);
     } finally {
-      setImageFile(null)
+      setImageFile(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
     }
-  }
+  };
 
   const handleSendMessage = useCallback(async () => {
     if (imageFile) {
-      await handleImageUpload()
-      return
+      await handleImageUpload();
+      return;
     }
 
-    if (!newMessage.trim() || !session?.user || !selectedFriend) return
+    if (!newMessage.trim() || !session?.user || !selectedFriend) return;
 
     const messageData: Message = {
       senderId: session.user.id,
@@ -283,27 +298,30 @@ export default function ChatArea({
       content: newMessage,
       role: "user",
       createdAt: new Date(),
-    }
+    };
 
     if (selectedFriend.id === "ai-assistant") {
-      setAiMessages((prev) => [...prev, messageData])
-      handleAiChat(newMessage)
+      setAiMessages((prev) => [...prev, messageData]);
+      handleAiChat(newMessage);
     } else {
-      socket?.emit("send_message", messageData)
+      socket?.emit("send_message", messageData);
     }
 
-    setNewMessage("")
-  }, [newMessage, socket, session?.user, selectedFriend, imageFile])
+    setNewMessage("");
+  }, [newMessage, socket, session?.user, selectedFriend, imageFile]);
 
   if (!selectedFriend) {
     return (
       <div className="flex-1 bg-background flex items-center justify-center">
-        <p className="text-xl text-muted-foreground">Select a friend to start chatting</p>
+        <p className="text-xl text-muted-foreground">
+          Select a friend to start chatting
+        </p>
       </div>
-    )
+    );
   }
 
-  const messages = selectedFriend.id === "ai-assistant" ? aiMessages : friendMessages
+  const messages =
+    selectedFriend.id === "ai-assistant" ? aiMessages : friendMessages;
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -320,10 +338,15 @@ export default function ChatArea({
             aiImage={ai_image.src}
           />
         ))}
+        {isTyping && (
+          <div className="flex items-center my-2">
+            <TypingIndicator userImage={selectedFriend.image} />
+          </div>
+        )}
 
         <div ref={messagesEndRef} />
       </ScrollArea>
-     
+
       <ChatInput
         newMessage={newMessage}
         setNewMessage={setNewMessage}
@@ -336,5 +359,5 @@ export default function ChatArea({
         handleTyping={handleTyping}
       />
     </div>
-  )
+  );
 }

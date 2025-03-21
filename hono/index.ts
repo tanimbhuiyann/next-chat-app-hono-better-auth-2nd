@@ -37,17 +37,15 @@ io.on("connection", (socket) => {
 
   socket.on('typing_On', async ({ senderId, receiverId }) =>{
     const roomId = [senderId, receiverId].sort().join('_');
-    socket.to(roomId).emit('typing_On',  { userId: senderId, isTyping: true });
-    socket.to(receiverId).emit('typing_On', { userId });
-    console.log('Typing On:', userId);
+    socket.to(roomId).emit('typing_On',  { userId: senderId });
+    console.log('Typing On:', senderId);
   })
 
 
   socket.on('typing_Off', async ({ senderId, receiverId }) =>{
     const roomId = [senderId, receiverId].sort().join('_');
-    socket.to(roomId).emit('typing_Off',  { userId: senderId, isTyping: false });
-    socket.to(receiverId).emit('typing_Off', { userId });
-    console.log('Typing Off:', userId);
+    socket.to(roomId).emit('typing_Off',  { userId: senderId });
+    console.log('Typing Off:', senderId);
   })
 
   // Send message
