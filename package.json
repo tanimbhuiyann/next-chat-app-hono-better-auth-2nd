@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:hono": "bun run --hot hono/index.ts",
+    "start:backend": "bun run hono/index.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -29,6 +30,7 @@
     "@types/socket.io-client": "^1.4.36",
     "better-auth": "^1.0.10",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",

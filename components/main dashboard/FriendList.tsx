@@ -6,9 +6,10 @@ import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import ai_image from "../../public/ai_image.png"
+import { config } from "@/lib/config";
 
-const client = hc<AppType>("http://localhost:3000/")
-
+/* const client = hc<AppType>("http://localhost:3000/") */
+const client = hc<AppType>(config.backendUrl)
 type Friend = {
   id: string
   name: string

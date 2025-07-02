@@ -1,0 +1,24 @@
+# Dockerfile.backend
+FROM oven/bun:1.1.38
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lockb ./
+COPY backend/package.json ./backend/
+
+# Install dependencies
+RUN bun install
+
+# Copy source code
+COPY hono ./hono
+COPY db ./db
+COPY lib ./lib
+COPY drizzle.config.ts ./
+COPY tsconfig.json ./
+
+# Expose ports
+EXPOSE 3000 3002
+
+# Start the application
+CMD ["bun", "run", "hono/index.ts"]

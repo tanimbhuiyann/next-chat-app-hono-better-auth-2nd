@@ -1,0 +1,23 @@
+{
+  "name": "chat-app-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "bun run hono/index.ts",
+    "dev": "bun run --hot hono/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@libsql/client": "^0.14.0",
+    "better-auth": "^1.0.10",
+    "cloudinary": "^2.7.0",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^4.6.13",
+    "nanoid": "^5.0.9",
+    "socket.io": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

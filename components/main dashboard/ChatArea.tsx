@@ -10,6 +10,7 @@ import { MessageBubble } from "../Chat/MessageBubble";
 import { ChatInput } from "../Chat/ChatInput";
 import { Message } from "../Chat/MessageType";
 import { TypingIndicator } from "../Chat/TypingIndicator";
+import { config } from "@/lib/config";
 
 export default function ChatArea({
   selectedFriend,
@@ -132,7 +133,7 @@ export default function ChatArea({
       return;
     }
 
-    const newSocket = io("http://localhost:3002", {
+    const newSocket = io(config.socketUrl, {
       transports: ["websocket"],
       query: { userId: session.user.id },
     });

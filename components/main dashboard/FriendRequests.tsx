@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button"
 import { hc } from "hono/client"
 import { AppType } from "@/hono"
 import Image from "next/image"
+import { config } from "@/lib/config"
 
-const client = hc<AppType>("http://localhost:3000/")
+const client = hc<AppType>(config.backendUrl)
+/* const client = hc<AppType>("http://localhost:3000/") */
 
 type FriendRequest = {
   friendRequest: {

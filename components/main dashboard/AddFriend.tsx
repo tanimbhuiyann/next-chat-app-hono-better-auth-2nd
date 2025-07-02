@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { hc } from "hono/client";
 import { AppType } from "@/hono";
 import { toast } from "sonner";
+import { config } from "@/lib/config";
 
-const client = hc<AppType>("http://localhost:3000/");
-
+/* const client = hc<AppType>("http://localhost:3000/"); */
+const client = hc<AppType>(config.backendUrl);
 export default function AddFriend({ userEmail }: { userEmail: string }) {
   const [addNewFriend, setNewFriend] = useState("");
 

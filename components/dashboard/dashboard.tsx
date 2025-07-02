@@ -17,8 +17,10 @@ import { Chat } from "../simple chatBox/chat";
 import { AppType } from "@/hono";
 import { hc } from "hono/client";
 import { useEffect, useState } from "react";
+import { config } from "@/lib/config";
 
-const client = hc<AppType>("http://localhost:3000/");
+const client = hc<AppType>(config.backendUrl)
+/* const client = hc<AppType>("http://localhost:3000/"); */
 //---------------------------------------------
 
 type FriendRequest = {

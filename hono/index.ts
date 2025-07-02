@@ -3,53 +3,74 @@ import { auth } from "@/lib/auth";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { db } from "@/db";
-import { friendRequest, user, chatMessage  } from "@/db/schema";
+import { friendRequest, user, chatMessage } from "@/db/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { Server } from "socket.io";
 import { createServer } from "http";
 
-
-
+/* 
 import {join } from "path";
 import { mkdir } from "fs/promises";
+ */
+import { v2 as cloudinary } from "cloudinary";
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [
+        process.env.FRONTEND_URL || "https://your-app.vercel.app",
+        "https://your-app.vercel.app", // Add your actual Vercel URL
+      ]
+    : ["http://localhost:3001"];
 
 const httpServer = createServer();
-const io = new Server(httpServer, {
+/* const io = new Server(httpServer, {
   cors: {
     origin: "http://localhost:3001",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+  },
+}); */
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
+
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId as string;
   console.log("New client connected:", userId);
 
   // Join chat room
-  socket.on('join_chat', async ({ senderId, receiverId }) => {
-    const roomId = [senderId, receiverId].sort().join('_');
+  socket.on("join_chat", async ({ senderId, receiverId }) => {
+    const roomId = [senderId, receiverId].sort().join("_");
     socket.join(roomId);
     console.log("New room created:", roomId);
   });
 
+  socket.on("typing_On", async ({ senderId, receiverId }) => {
+    const roomId = [senderId, receiverId].sort().join("_");
+    socket.to(roomId).emit("typing_On", { userId: senderId });
+    console.log("Typing On:", senderId);
+  });
 
-  socket.on('typing_On', async ({ senderId, receiverId }) =>{
-    const roomId = [senderId, receiverId].sort().join('_');
-    socket.to(roomId).emit('typing_On',  { userId: senderId });
-    console.log('Typing On:', senderId);
-  })
-
-
-  socket.on('typing_Off', async ({ senderId, receiverId }) =>{
-    const roomId = [senderId, receiverId].sort().join('_');
-    socket.to(roomId).emit('typing_Off',  { userId: senderId });
-    console.log('Typing Off:', senderId);
-  })
+  socket.on("typing_Off", async ({ senderId, receiverId }) => {
+    const roomId = [senderId, receiverId].sort().join("_");
+    socket.to(roomId).emit("typing_Off", { userId: senderId });
+    console.log("Typing Off:", senderId);
+  });
 
   // Send message
-  socket.on('send_message', async (messageData) => {
+  socket.on("send_message", async (messageData) => {
     try {
       const newMessage = {
         id: nanoid(),
@@ -57,26 +78,26 @@ io.on("connection", (socket) => {
         receiverId: messageData.receiverId,
         content: messageData.content,
         imageUrl: messageData.imageUrl || null,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       // Save to database
       await db.insert(chatMessage).values(newMessage);
-      console.log('Message sent:', newMessage);
-
+      console.log("Message sent:", newMessage);
 
       // Broadcast to both users in the room
-      const roomId = [messageData.senderId, messageData.receiverId].sort().join('_');
-      io.to(roomId).emit('receive_message', newMessage);
-      console.log('Message broadcasted to room:', roomId, newMessage);
-
+      const roomId = [messageData.senderId, messageData.receiverId]
+        .sort()
+        .join("_");
+      io.to(roomId).emit("receive_message", newMessage);
+      console.log("Message broadcasted to room:", roomId, newMessage);
     } catch (error) {
-      console.error('Message sending error:', error);
+      console.error("Message sending error:", error);
     }
   });
 
   // Get message history
-  socket.on('get_message_history', async ({ senderId, receiverId }) => {
+  socket.on("get_message_history", async ({ senderId, receiverId }) => {
     try {
       const messages = await db
         .select()
@@ -98,24 +119,31 @@ io.on("connection", (socket) => {
         .orderBy(chatMessage.createdAt)
         .limit(50);
 
-      socket.emit('message_history', messages);
+      socket.emit("message_history", messages);
     } catch (error) {
-      console.error('Message history error:', error);
+      console.error("Message history error:", error);
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
+  socket.on("disconnect", () => {
+    console.log("Client disconnected");
   });
 });
 
-httpServer.listen(3002, () => {
-  console.log('Socket.IO server running on port 3002');
+/* httpServer.listen(3002, () => {
+  console.log("Socket.IO server running on port 3002");
 });
+ */
+// Socket.io port
+const SOCKET_PORT = process.env.SOCKET_PORT || 3002;
+httpServer.listen(SOCKET_PORT, () => {
+  console.log(`Socket.IO server running on port ${SOCKET_PORT}`);
+});
+
 
 const app = new Hono()
 
-  .use(
+  /*   .use(
     "*", // Allow all API routes
     cors({
       origin: "http://localhost:3001", // replace with  origin
@@ -125,11 +153,21 @@ const app = new Hono()
       maxAge: 600,
       credentials: true,
     })
+  ) */
+
+  .use(
+    "*",
+    cors({
+      origin: allowedOrigins,
+      allowHeaders: ["Content-Type", "Authorization"],
+      allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
+      exposeHeaders: ["Content-Length"],
+      maxAge: 600,
+      credentials: true,
+    })
   )
 
-
- 
-.post("/api/uploadImage", async (c) => {
+  /* .post("/api/uploadImage", async (c) => {
   try{
     const fromData = await c.req.formData();
     const file = fromData.get("file") as File;
@@ -168,10 +206,62 @@ const app = new Hono()
     );
   }
 })
+ */
 
+  .post("/api/uploadImage", async (c) => {
+    try {
+      const formData = await c.req.formData();
+      const file = formData.get("file") as File;
 
+      if (!file) {
+        return c.json({ error: "No file uploaded" }, 400);
+      }
 
-.get("/uploads/:filename", async (c) => {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        return c.json({ error: "Invalid file type" }, 400);
+      }
+
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        return c.json({ error: "File size exceeds 5mb limit" }, 400);
+      }
+
+      // Convert file to buffer
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Upload to Cloudinary
+      const result = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              resource_type: "auto",
+              folder: "chat-app", // Optional: organize in folders
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          )
+          .end(buffer);
+      });
+      console.log("Cloudinary upload result:", result);
+      // Return the secure URL from Cloudinary
+      return c.json({ url: result.secure_url }, 201);
+    } catch (error) {
+      console.error("upload error:", error);
+      return c.json({ error: "Failed to upload file" }, 500);
+    }
+  })
+
+  /* .get("/uploads/:filename", async (c) => {
   try {
     const filename = c.req.param("filename");
     const path = join(__dirname, "public", "uploads", filename);
@@ -191,8 +281,7 @@ const app = new Hono()
     return c.json({ error: "Internal server error" }, 500);
   }
 })
-
-
+ */
 
   //send friend request
   .post("/api/friend-request/send", async (c) => {
@@ -308,9 +397,9 @@ const app = new Hono()
         .from(friendRequest)
         .innerJoin(user, eq(friendRequest.senderEmail, user.email))
         .where(
-          and( 
+          and(
             eq(friendRequest.receiverEmail, email),
-            eq(friendRequest.status, 'PENDING')
+            eq(friendRequest.status, "PENDING")
           )
         )
         .all();
@@ -469,9 +558,16 @@ const app = new Hono()
   .get("/api/auth/*", (c) => auth.handler(c.req.raw))
   .post("/api/auth/*", (c) => auth.handler(c.req.raw));
 
-serve({ fetch: app.fetch, port: 3000 }, (info) => {
+/* serve({ fetch: app.fetch, port: 3000 }, (info) => {
   console.log(`Server is running on port ${info.port}`);
 });
+ */
 
+
+// Update the serve port to use environment variable:
+const PORT = Number(process.env.PORT) || 3000;
+serve({ fetch: app.fetch, port: PORT }, (info) => {
+  console.log(`Server is running on port ${info.port}`);
+});
 export type AppType = typeof app;
 //bun run --hot hono/index.ts
