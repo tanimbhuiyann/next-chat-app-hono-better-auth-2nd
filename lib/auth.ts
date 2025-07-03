@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+/* import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db"; // your drizzle instance
 import { schema } from "@/db/schema";
@@ -28,14 +28,30 @@ export const auth = betterAuth({
   },
   trustedOrigins: ["http://localhost:3000", "http://localhost:3001"],
 });
+ */
 
 
 
+// lib/auth.ts
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { db } from "@/db";
+import { schema } from "@/db/schema";
 
-// In lib/auth.ts, update the redirect URIs:
-/* 
-const productionUrl = process.env.BETTER_AUTH_URL || "https://your-backend-url.onrender.com";
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+// Define all possible origins
+const trustedOrigins = isDevelopment 
+  ? [
+      "http://localhost:3000",  // Backend
+      "http://localhost:3001",  // Frontend
+      "http://localhost:3002"   // Socket.io
+    ]
+  : [
+      process.env.BETTER_AUTH_URL || "https://your-backend-url.onrender.com",
+      process.env.FRONTEND_URL || "https://your-app.vercel.app",
+      // Add any other production URLs here
+    ];
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -53,17 +69,15 @@ export const auth = betterAuth({
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       redirectURI: isDevelopment 
         ? "http://localhost:3000/api/auth/callback/github"
-        : `${productionUrl}/api/auth/callback/github`,
+        : `${process.env.BETTER_AUTH_URL}/api/auth/callback/github`,
     },
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       redirectURI: isDevelopment
         ? "http://localhost:3000/api/auth/callback/google"
-        : `${productionUrl}/api/auth/callback/google`,
+        : `${process.env.BETTER_AUTH_URL}/api/auth/callback/google`,
     },
   },
-  trustedOrigins: isDevelopment 
-    ? ["http://localhost:3000", "http://localhost:3001"]
-    : [productionUrl, process.env.FRONTEND_URL || "https://your-app.vercel.app"],
-}); */
+  trustedOrigins: trustedOrigins,
+});

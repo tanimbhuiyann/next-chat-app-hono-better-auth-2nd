@@ -19,7 +19,7 @@ export function SignInForm() {
     try {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: "http://localhost:3001/dashboard", // Redirect to the dashboard after sign-in
+        callbackURL: "http://localhost:3001/telegramcone", // Redirect to the dashboard after sign-in
       });
      /*  router.push("/dashboard");  */// Fallback if the callbackURL fails
     } catch (error) {
