@@ -48,8 +48,8 @@ const trustedOrigins = isDevelopment
       "http://localhost:3002"   // Socket.io
     ]
   : [
-      process.env.BETTER_AUTH_URL || "https://your-backend-url.onrender.com",
-      process.env.FRONTEND_URL || "https://your-app.vercel.app",
+      process.env.BETTER_AUTH_URL || "https://next-chat-app-hono-better-auth-2nd.onrender.com",
+      process.env.FRONTEND_URL || "https://next-chat-app-hono-better-auth-2nd-5m882uv83.vercel.app",
       // Add any other production URLs here
     ];
 

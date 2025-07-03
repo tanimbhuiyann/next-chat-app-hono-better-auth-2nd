@@ -21,30 +21,31 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+/* const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [
+        process.env.FRONTEND_URL ||
+          "https://next-chat-app-hono-better-auth-2nd.vercel.app",
+        "https://next-chat-app-hono-better-auth-2nd.vercel.app", // Add your actual Vercel URL
+      ]
+    : ["http://localhost:3001"]; */
 const allowedOrigins =
   process.env.NODE_ENV === "production"
     ? [
-        process.env.FRONTEND_URL || "https://your-app.vercel.app",
-        "https://your-app.vercel.app", // Add your actual Vercel URL
+        process.env.FRONTEND_URL ||
+          "https://next-chat-app-hono-better-auth-2nd.vercel.app",
+        "https://next-chat-app-hono-better-auth-2nd.vercel.app",
       ]
     : ["http://localhost:3001"];
 
 const httpServer = createServer();
-/* const io = new Server(httpServer, {
-  cors: {
-    origin: "http://localhost:3001",
-    methods: ["GET", "POST"],
-  },
-}); */
-
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
-
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId as string;
@@ -139,7 +140,6 @@ const SOCKET_PORT = process.env.SOCKET_PORT || 3002;
 httpServer.listen(SOCKET_PORT, () => {
   console.log(`Socket.IO server running on port ${SOCKET_PORT}`);
 });
-
 
 const app = new Hono()
 
@@ -562,7 +562,6 @@ const app = new Hono()
   console.log(`Server is running on port ${info.port}`);
 });
  */
-
 
 // Update the serve port to use environment variable:
 const PORT = Number(process.env.PORT) || 3000;

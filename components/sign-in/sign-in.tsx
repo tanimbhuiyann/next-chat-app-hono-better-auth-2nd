@@ -19,8 +19,10 @@ export function SignInForm() {
     try {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: "http://localhost:3001/telegramcone", // Redirect to the dashboard after sign-in
-      });
+        callbackURL: process.env.NODE_ENV === 'production' 
+        ? "https://next-chat-app-hono-better-auth-2nd.vercel.app/telegramcone"
+        : "http://localhost:3001/telegramcone",
+    });
      /*  router.push("/dashboard");  */// Fallback if the callbackURL fails
     } catch (error) {
       console.error("Failed to sign in with GitHub:", error);
