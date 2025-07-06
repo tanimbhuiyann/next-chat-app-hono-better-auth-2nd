@@ -29,14 +29,12 @@ cloudinary.config({
         "https://next-chat-app-hono-better-auth-2nd.vercel.app", // Add your actual Vercel URL
       ]
     : ["http://localhost:3001"]; */
-const allowedOrigins =
-  process.env.NODE_ENV === "production"
-    ? [
-        process.env.FRONTEND_URL ||
-          "https://next-chat-app-hono-better-auth-2nd.vercel.app",
-        "https://next-chat-app-hono-better-auth-2nd.vercel.app",
-      ]
-    : ["http://localhost:3001"];
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? [
+      "https://next-chat-app-hono-better-auth-2nd.vercel.app",
+      process.env.FRONTEND_URL,
+    ].filter(Boolean) // Remove undefined values
+  : ["http://localhost:3001"];
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -44,7 +42,8 @@ const io = new Server(httpServer, {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
-  },
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }
 });
 
 io.on("connection", (socket) => {
@@ -158,7 +157,7 @@ const app = new Hono()
   .use(
     "*",
     cors({
-      origin: allowedOrigins,
+      origin: allowedOrigins, // FIXED: Use the updated allowedOrigins
       allowHeaders: ["Content-Type", "Authorization"],
       allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
       exposeHeaders: ["Content-Length"],

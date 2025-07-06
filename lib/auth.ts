@@ -32,7 +32,8 @@ export const auth = betterAuth({
 
 
 
-// lib/auth.ts
+// Update your lib/auth.ts - Replace the trustedOrigins section
+
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
@@ -40,18 +41,19 @@ import { schema } from "@/db/schema";
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
-// Define all possible origins
-const trustedOrigins = isDevelopment 
+// FIXED: Updated trusted origins to include your exact Vercel URL
+const trustedOrigins = isDevelopment
   ? [
-      "http://localhost:3000",  // Backend
-      "http://localhost:3001",  // Frontend
-      "http://localhost:3002"   // Socket.io
+      "http://localhost:3000", // Backend
+      "http://localhost:3001", // Frontend
+      "http://localhost:3002"  // Socket.io
     ]
   : [
-      process.env.BETTER_AUTH_URL || "https://next-chat-app-hono-better-auth-2nd.onrender.com",
-      process.env.FRONTEND_URL || "https://next-chat-app-hono-better-auth-2nd-5m882uv83.vercel.app",
-      // Add any other production URLs here
-    ];
+      "https://next-chat-app-hono-better-auth-2nd.onrender.com",
+      "https://next-chat-app-hono-better-auth-2nd.vercel.app", // FIXED: Added your exact URL
+      process.env.FRONTEND_URL,
+      process.env.BETTER_AUTH_URL,
+    ].filter(Boolean);
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -67,7 +69,7 @@ export const auth = betterAuth({
     github: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      redirectURI: isDevelopment 
+      redirectURI: isDevelopment
         ? "http://localhost:3000/api/auth/callback/github"
         : `${process.env.BETTER_AUTH_URL}/api/auth/callback/github`,
     },
@@ -79,5 +81,5 @@ export const auth = betterAuth({
         : `${process.env.BETTER_AUTH_URL}/api/auth/callback/google`,
     },
   },
-  trustedOrigins: trustedOrigins,
+  trustedOrigins: trustedOrigins, // FIXED: Use the updated trustedOrigins
 });

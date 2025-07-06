@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 /* import { useRouter } from "next/navigation"; */
 import { authClient } from "@/lib/auth-client"; // Replace with your actual auth client import
-
+import { config } from "@/lib/config";
 export function SignInForm() {
   /* const router = useRouter(); */
 
@@ -20,8 +20,8 @@ export function SignInForm() {
       await authClient.signIn.social({
         provider: "github",
         callbackURL: process.env.NODE_ENV === 'production' 
-        ? "https://next-chat-app-hono-better-auth-2nd.vercel.app/telegramcone"
-        : "http://localhost:3001/telegramcone",
+        ? "https://next-chat-app-hono-better-auth-2nd.vercel.app/telegramclone"
+        : "http://localhost:3001/telegramclone",
     });
      /*  router.push("/dashboard");  */// Fallback if the callbackURL fails
     } catch (error) {
@@ -33,7 +33,9 @@ export function SignInForm() {
     try {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "http://localhost:3001/telegramcone", // Redirect to the dashboard after sign-in
+        callbackURL: process.env.NODE_ENV === 'production' 
+        ? "https://next-chat-app-hono-better-auth-2nd.vercel.app/telegramclone"
+        : "http://localhost:3001/telegramclone", // Redirect to the dashboard after sign-in
       });
      /*  router.push("/dashboard");  */// Fallback if the callbackURL fails
     } catch (error) {
