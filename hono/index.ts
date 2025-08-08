@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { db } from "@/db";
-import { friendRequest, user, chatMessage } from "@/db/schema";
+import { friendRequest, user, chatMessage, userKeys } from "@/db/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { Server } from "socket.io";
@@ -29,12 +29,17 @@ cloudinary.config({
         "https://next-chat-app-hono-better-auth-2nd.vercel.app", // Add your actual Vercel URL
       ]
     : ["http://localhost:3001"]; */
-const allowedOrigins = process.env.NODE_ENV === "production"
+const allowedOriginsRaw = process.env.NODE_ENV === "production"
   ? [
       "https://next-chat-app-hono-better-auth-2nd.vercel.app",
       process.env.FRONTEND_URL,
-    ].filter(Boolean) // Remove undefined values
+    ]
   : ["http://localhost:3001"];
+
+// Filter out undefined values to ensure type safety for Socket.IO
+const allowedOrigins = allowedOriginsRaw.filter(
+  (origin): origin is string => typeof origin === "string"
+);
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -70,60 +75,66 @@ io.on("connection", (socket) => {
   });
 
   // Send message
-  socket.on("send_message", async (messageData) => {
-    try {
-      const newMessage = {
-        id: nanoid(),
-        senderId: messageData.senderId,
-        receiverId: messageData.receiverId,
-        content: messageData.content,
-        imageUrl: messageData.imageUrl || null,
-        createdAt: new Date(),
-      };
 
-      // Save to database
-      await db.insert(chatMessage).values(newMessage);
-      console.log("Message sent:", newMessage);
+// Update your socket handler in index.ts
+socket.on("send_message", async (messageData) => {
+  try {
+    const newMessage = {
+      id: nanoid(),
+      senderId: messageData.senderId,
+      receiverId: messageData.receiverId,
+      content: messageData.content, // This is now encrypted
+      imageUrl: messageData.imageUrl || null,
+      encryptedAESKey: messageData.encryptedAESKey || null, // For receiver
+      senderEncryptedAESKey: messageData.senderEncryptedAESKey || null, // For sender - NEW FIELD
+      createdAt: new Date(),
+    };
 
-      // Broadcast to both users in the room
-      const roomId = [messageData.senderId, messageData.receiverId]
-        .sort()
-        .join("_");
-      io.to(roomId).emit("receive_message", newMessage);
-      console.log("Message broadcasted to room:", roomId, newMessage);
-    } catch (error) {
-      console.error("Message sending error:", error);
-    }
-  });
+    // Save to database - Drizzle will handle the new field automatically
+    await db.insert(chatMessage).values(newMessage);
+    console.log("Encrypted message sent:", newMessage);
 
-  // Get message history
-  socket.on("get_message_history", async ({ senderId, receiverId }) => {
-    try {
-      const messages = await db
-        .select()
-        .from(chatMessage)
-        .where(
-          and(
-            or(
-              and(
-                eq(chatMessage.senderId, senderId),
-                eq(chatMessage.receiverId, receiverId)
-              ),
-              and(
-                eq(chatMessage.senderId, receiverId),
-                eq(chatMessage.receiverId, senderId)
-              )
+    // Broadcast to both users in the room
+    const roomId = [messageData.senderId, messageData.receiverId]
+      .sort()
+      .join("_");
+
+    io.to(roomId).emit("receive_message", newMessage);
+    console.log("Encrypted message broadcasted to room:", roomId);
+  } catch (error) {
+    console.error("Message sending error:", error);
+  }
+});
+
+// Update message history retrieval
+socket.on("get_message_history", async ({ senderId, receiverId }) => {
+  try {
+    const messages = await db
+      .select()
+      .from(chatMessage)
+      .where(
+        and(
+          or(
+            and(
+              eq(chatMessage.senderId, senderId),
+              eq(chatMessage.receiverId, receiverId)
+            ),
+            and(
+              eq(chatMessage.senderId, receiverId),
+              eq(chatMessage.receiverId, senderId)
             )
           )
         )
-        .orderBy(chatMessage.createdAt)
-        .limit(50);
+      )
+      .orderBy(chatMessage.createdAt)
+      .limit(50);
 
-      socket.emit("message_history", messages);
-    } catch (error) {
-      console.error("Message history error:", error);
-    }
-  });
+    // Send encrypted messages as-is; decryption happens on client
+    socket.emit("message_history", messages);
+  } catch (error) {
+    console.error("Message history error:", error);
+  }
+});
 
   socket.on("disconnect", () => {
     console.log("Client disconnected");
@@ -166,46 +177,7 @@ const app = new Hono()
     })
   )
 
-  /* .post("/api/uploadImage", async (c) => {
-  try{
-    const fromData = await c.req.formData();
-    const file = fromData.get("file") as File;
 
-    if(!file){
-      return c.json({error: "No file uploaded"}, 400);
-    }
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-   
-    if(!allowedTypes.includes(file.type)){
-      return c.json({error: "Invalid file type"}, 400);
-    }
-
-    const maxSize = 5 * 1024 * 1024; 
-
-    if(file.size > maxSize){
-      return c.json({error: "File size exceeds 5mb limit"}, 400);
-    }
-
-    const filename = `${nanoid()}-${file.name}`;
-    const uploadPath = join(__dirname, "public", "uploads", filename);
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    await mkdir(join(__dirname, "public", "uploads"), {recursive: true});
-    await Bun.write(uploadPath, buffer);
-
-
-   return c.json({url: `http://localhost:3000/uploads/${filename}`}, 201);
-
-  }
-  catch (error) {
-    console.error("upload error:", error);
-    return c.json({ error: "Failed to upload file" }, 500
-    );
-  }
-})
- */
 
   .post("/api/uploadImage", async (c) => {
     try {
@@ -260,27 +232,6 @@ const app = new Hono()
     }
   })
 
-  /* .get("/uploads/:filename", async (c) => {
-  try {
-    const filename = c.req.param("filename");
-    const path = join(__dirname, "public", "uploads", filename);
-    const file = Bun.file(path);
-    
-    if (!(await file.exists())) {
-      return c.json({ error: "File not found" }, 404);
-    }
-    
-    return new Response(file, {
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream'
-      }
-    });
-  } catch (error) {
-    console.error("Error serving file:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-})
- */
 
   //send friend request
   .post("/api/friend-request/send", async (c) => {
@@ -551,6 +502,79 @@ const app = new Hono()
       );
     }
   })
+
+  // Add these routes to your existing Hono app
+
+// Save user's public key
+.post("/api/keys/save", async (c) => {
+  try {
+    const { userId, publicKey } = await c.req.json();
+    console.log("Saving public key for user:", userId); // Debug log
+    
+    if (!userId || !publicKey) {
+      return c.json({ error: "Missing userId or publicKey" }, 400);
+    }
+
+    // Check if key already exists
+    const existingKey = await db
+      .select()
+      .from(userKeys)
+      .where(eq(userKeys.userId, userId))
+      .get();
+
+    if (existingKey) {
+      console.log("Updating existing key for user:", userId);
+      // Update existing key
+      await db
+        .update(userKeys)
+        .set({ 
+          publicKey, 
+          updatedAt: new Date(),
+          privateKeyEncrypted: "" // We don't store private keys
+        })
+        .where(eq(userKeys.userId, userId));
+    } else {
+      console.log("Creating new key for user:", userId);
+      // Create new key record
+      await db.insert(userKeys).values({
+        userId,
+        publicKey,
+        privateKeyEncrypted: "", // We don't store private keys
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    return c.json({ message: "Public key saved successfully" }, 201);
+  } catch (error) {
+    console.error("Error saving public key:", error);
+    return c.json({ error: "Failed to save public key", details: error instanceof Error ? error.message : "Unknown error" }, 500);
+  }
+})
+// Get user's public key
+.get("/api/keys/:userId", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    console.log("Fetching public key for user:", userId); // Debug log
+    
+    const userKey = await db
+      .select()
+      .from(userKeys)
+      .where(eq(userKeys.userId, userId))
+      .get();
+
+    if (!userKey) {
+      console.log("Public key not found for user:", userId);
+      return c.json({ error: "User public key not found" }, 404);
+    }
+
+    console.log("Public key found for user:", userId);
+    return c.json({ publicKey: userKey.publicKey }, 200);
+  } catch (error) {
+    console.error("Error fetching public key:", error);
+    return c.json({ error: "Failed to fetch public key", details: error instanceof Error ? error.message : "Unknown error" }, 500);
+  }
+})
 
   .get("/", (c) => c.text("Hono!"))
 

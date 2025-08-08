@@ -1,0 +1,1 @@
+ALTER TABLE `chat_messages` ADD `sender_encrypted_aes_key` text;

@@ -1,4 +1,30 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { nanoid } from "nanoid";
+
+
+export const userKeys = sqliteTable("user_keys", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id),
+  publicKey: text("public_key").notNull(),
+  privateKeyEncrypted: text("private_key_encrypted").notNull(), // We won't use this field
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const conversationKeys = sqliteTable("conversation_keys", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  conversationId: text("conversation_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id),
+  encryptedAESKey: text("encrypted_aes_key").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+
+
 
 export const user = sqliteTable("user", {
   id: text("id").primaryKey(),
@@ -73,7 +99,7 @@ export const friendRequest = sqliteTable("friend_request", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
-
+// Updated schema in your schema file (probably db/schema.ts)
 export const chatMessage = sqliteTable("chat_messages", {
   id: text("id").primaryKey(),
   senderId: text("sender_id")
@@ -82,14 +108,15 @@ export const chatMessage = sqliteTable("chat_messages", {
   receiverId: text("receiver_id")
     .notNull()
     .references(() => user.id),
-  content: text("content").notNull(),
+  content: text("content").notNull(), // This will store encrypted content
   imageUrl: text("image_url"),
+  encryptedAESKey: text("encrypted_aes_key"), // AES key encrypted with recipient's RSA public key
+  senderEncryptedAESKey: text("sender_encrypted_aes_key"), // ADD THIS LINE - AES key encrypted with sender's RSA public key
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   readAt: integer("read_at", { mode: "timestamp" }),
   friendRequestId: text("friend_request_id")
     .references(() => friendRequest.id)
 });
-
 
 export const schema = {
   user,
@@ -98,4 +125,6 @@ export const schema = {
   verification,
   friendRequest,
   chatMessage,
+  userKeys,
+  conversationKeys,
 };

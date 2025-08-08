@@ -11,6 +11,9 @@ import { ChatInput } from "../Chat/ChatInput";
 import { Message } from "../Chat/MessageType";
 import { TypingIndicator } from "../Chat/TypingIndicator";
 import { config } from "@/lib/config";
+import { EncryptionService } from '@/lib/encryption';
+
+
 
 export default function ChatArea({
   selectedFriend,
@@ -24,6 +27,9 @@ export default function ChatArea({
   const { data: session } = authClient.useSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isFirstAiMessage = useRef(true);
+  const [isEncryptionReady, setIsEncryptionReady] = useState(false);
+  
+const encryptionService = EncryptionService.getInstance();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(
@@ -40,6 +46,28 @@ export default function ChatArea({
   useEffect(() => {
     scrollToBottom();
   }, [friendMessages, aiMessages, scrollToBottom, isTyping]);
+
+
+useEffect(() => {
+  const initializeEncryption = async () => {
+    if (session?.user?.id) {
+      try {
+        console.log('Initializing encryption for user:', session.user.id);
+        await encryptionService.initializeUserKeys(session.user.id);
+        setIsEncryptionReady(true);
+        console.log('Encryption initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize encryption:', error);
+        // Set ready to false but still allow non-encrypted messaging
+        setIsEncryptionReady(false);
+      }
+    }
+  };
+
+  initializeEncryption();
+}, [session?.user?.id]);
+
+
 
   const handleAiChat = async (userMessage: string) => {
     try {
@@ -150,13 +178,77 @@ export default function ChatArea({
       });
     });
 
-    newSocket.on("receive_message", (message: Message) => {
-      setFriendMessages((prev) => [...prev, message]);
-    });
+// Updated decryption logic in ChatArea.tsx useEffect
 
-    newSocket.on("message_history", (history: Message[]) => {
-      setFriendMessages(history);
-    });
+// Replace the "receive_message" socket handler with this:
+newSocket.on("receive_message", async (message: Message) => {
+  try {
+    // Decrypt message if it's encrypted and not from AI
+    if (message.encryptedAESKey && message.senderId !== "ai-assistant") {
+      let aesKey: string;
+      
+      // Check if this is our own message (we are the sender)
+      if (message.senderId === session?.user?.id && message.senderEncryptedAESKey) {
+        // Use our own encrypted AES key
+        aesKey = encryptionService.decryptAESKey(message.senderEncryptedAESKey);
+      } else {
+        // Use the receiver's encrypted AES key
+        aesKey = encryptionService.decryptAESKey(message.encryptedAESKey);
+      }
+      
+      const decryptedContent = encryptionService.decryptMessage(message.content, aesKey);
+      setFriendMessages((prev) => [...prev, {
+        ...message,
+        content: decryptedContent // Display decrypted content
+      }]);
+    } else {
+      setFriendMessages((prev) => [...prev, message]);
+    }
+  } catch (error) {
+    console.error('Failed to decrypt message:', error);
+    // Show encrypted message or error indicator
+    setFriendMessages((prev) => [...prev, {
+      ...message,
+      content: "[Encrypted message - failed to decrypt]"
+    }]);
+  }
+});
+
+// Replace the "message_history" socket handler with this:
+newSocket.on("message_history", async (history: Message[]) => {
+  try {
+    // Decrypt message history
+    const decryptedHistory = await Promise.all(
+      history.map(async (message) => {
+        if (message.encryptedAESKey && message.senderId !== "ai-assistant") {
+          try {
+            let aesKey: string;
+            
+            // Check if this is our own message (we are the sender)
+            if (message.senderId === session?.user?.id && message.senderEncryptedAESKey) {
+              // Use our own encrypted AES key
+              aesKey = encryptionService.decryptAESKey(message.senderEncryptedAESKey);
+            } else {
+              // Use the receiver's encrypted AES key
+              aesKey = encryptionService.decryptAESKey(message.encryptedAESKey);
+            }
+            
+            const decryptedContent = encryptionService.decryptMessage(message.content, aesKey);
+            return { ...message, content: decryptedContent };
+          } catch (error) {
+            console.error('Failed to decrypt historical message:', error);
+            return { ...message, content: "[Encrypted message - failed to decrypt]" };
+          }
+        }
+        return message;
+      })
+    );
+    setFriendMessages(decryptedHistory);
+  } catch (error) {
+    console.error('Failed to decrypt message history:', error);
+    setFriendMessages(history);
+  }
+});
 
     newSocket.on("typing_On", ({ userId }: { userId: string }) => {
       console.log("typing_On", userId);
@@ -180,7 +272,7 @@ export default function ChatArea({
       }
       newSocket.disconnect();
     };
-  }, [session?.user, selectedFriend]);
+  },  [session?.user, selectedFriend, isEncryptionReady]);
 
   const emitTyping = useCallback(() => {
     if (
@@ -285,14 +377,26 @@ export default function ChatArea({
     }
   };
 
-  const handleSendMessage = useCallback(async () => {
-    if (imageFile) {
-      await handleImageUpload();
-      return;
-    }
 
-    if (!newMessage.trim() || !session?.user || !selectedFriend) return;
 
+
+
+
+
+
+
+
+
+// Updated handleSendMessage function in ChatArea.tsx
+const handleSendMessage = useCallback(async () => {
+  if (imageFile) {
+    await handleImageUpload();
+    return;
+  }
+  if (!newMessage.trim() || !session?.user || !selectedFriend || !isEncryptionReady) return;
+
+  // Skip encryption for AI assistant
+  if (selectedFriend.id === "ai-assistant") {
     const messageData: Message = {
       senderId: session.user.id,
       receiverId: selectedFriend.id,
@@ -300,16 +404,52 @@ export default function ChatArea({
       role: "user",
       createdAt: new Date(),
     };
-
-    if (selectedFriend.id === "ai-assistant") {
-      setAiMessages((prev) => [...prev, messageData]);
-      handleAiChat(newMessage);
-    } else {
-      socket?.emit("send_message", messageData);
-    }
-
+    setAiMessages((prev) => [...prev, messageData]);
+    handleAiChat(newMessage);
     setNewMessage("");
-  }, [newMessage, socket, session?.user, selectedFriend, imageFile]);
+    return;
+  }
+
+  try {
+    // Generate AES key for this message
+    const aesKey = encryptionService.generateAESKey();
+    
+    // Encrypt the message with AES
+    const encryptedContent = encryptionService.encryptMessage(newMessage, aesKey);
+    
+    // Get recipient's public key
+    const recipientPublicKey = await encryptionService.getRecipientPublicKey(selectedFriend.id);
+    
+    // Get sender's (own) public key
+    const senderPublicKey = encryptionService.getPublicKey();
+    
+    if (!senderPublicKey) {
+      throw new Error('Sender public key not available');
+    }
+    
+    // Encrypt AES key with recipient's public key
+    const encryptedAESKey = encryptionService.encryptAESKey(aesKey, recipientPublicKey);
+    
+    // Encrypt AES key with sender's public key (for your own decryption)
+    const senderEncryptedAESKey = encryptionService.encryptAESKey(aesKey, senderPublicKey);
+
+    const messageData: Message = {
+      senderId: session.user.id,
+      receiverId: selectedFriend.id,
+      content: encryptedContent, // Encrypted content
+      encryptedAESKey, // Encrypted AES key for receiver
+      senderEncryptedAESKey, // Encrypted AES key for sender
+      role: "user",
+      createdAt: new Date(),
+    };
+
+    socket?.emit("send_message", messageData);
+    setNewMessage("");
+  } catch (error) {
+    console.error('Failed to encrypt message:', error);
+    // Fallback to unencrypted message or show error
+  }
+}, [newMessage, socket, session?.user, selectedFriend, imageFile, isEncryptionReady]);
 
   if (!selectedFriend) {
     return (
